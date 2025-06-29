@@ -1,0 +1,13 @@
+http:
+  path: localhost
+  port: 8080
+postgres:
+  username: homestay_api
+  password: 123456
+  database: homestay_api
+  host: localhost
+  port: 5435
+  options: "?sslmode=disable"
+  max_idle_conns: 10
+  max_open_conns: 80
+  conn_max_lifetime: 300s
