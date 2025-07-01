@@ -1,4 +1,4 @@
-package topic
+package room
 
 import (
 	"back-end/cmd/database/model"
@@ -9,38 +9,41 @@ import (
 	"github.com/go-kratos/kratos/v2/log"
 )
 
-type HomestayCreateLogic struct {
+type RoomCreateLogic struct {
 	ctx       context.Context
 	svcCtx    *svc.ServiceContext
 	logHelper *log.Helper
 }
 
-func NewTopicCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext, logHelper *log.Helper) HomestayCreateLogic {
-	return HomestayCreateLogic{
+func NewRoomCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext, logHelper *log.Helper) RoomCreateLogic {
+	return RoomCreateLogic{
 		ctx:       ctx,
 		svcCtx:    svcCtx,
 		logHelper: logHelper,
 	}
 }
 
-func (l *HomestayCreateLogic) HomestayCreate(input *types.C) error {
-	l.logHelper.Infof("Start process get topic")
+func (l *RoomCreateLogic) RoomCreate(input *types.CreateRoomRequest) error {
+	l.logHelper.Infof("Start creating new room")
 
-	topic := &model.Topic{
-		TopicName:      input.TopicName,
-		GroupStudentID: input.GroupStudentID,
-		LecturerID:     input.LecturerID,
-		StartDay:       input.StartDay,
-		EndDay:         input.EndDay,
-		Allowance:      input.Allowance,
-		TopicStatus:    input.TopicStatus,
+	room := &model.Room{
+		HomestayID:    input.HomestayID,
+		Name:          input.Name,
+		Description:   input.Description,
+		PricePerNight: input.PricePerNight,
+		MaxGuests:     input.MaxGuests,
+		NumBedrooms:   input.NumBedrooms,
+		NumBathrooms:  input.NumBathrooms,
+		Area:          input.Area,
+		Status:        input.Status,
 	}
 
-	err := l.svcCtx.TopicRepo.CreateTopic(l.ctx, topic)
+	err := l.svcCtx.RoomRepo.CreateRoom(l.ctx, room)
 	if err != nil {
-		l.logHelper.Errorf("Failed while insert topic, error: %s", err.Error())
+		l.logHelper.Errorf("Failed to create room: %s", err.Error())
 		return err
 	}
-	return nil
 
+	l.logHelper.Infof("Room created successfully: %+v", room)
+	return nil
 }

@@ -1,23 +1,22 @@
 package types
 
 type UpdateHomestayPath struct {
-	Id int64 `uri:"topic_id" binding:"required"`
+	Id int64 `uri:"id" binding:"required"`
 }
 
 type UpdateHomestayRequest struct {
-	TopicName      string `json:"name"`
-	GroupStudentID int64  `json:"group_student_id"`
-	LecturerID     int64  `json:"lecturer_id"`
-	StartDay       string `json:"start_day"`
-	EndDay         string `json:"end_day"`
-	Allowance      string `json:"allowance"`
-	TopicStatus    string `json:"status"`
+	ServiceID     int64  `json:"service_id"`
+	HostID        int64  `json:"host_id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	Location      string `json:"location"`
+	Address       string `json:"address"`
+	CoverImageURL string `json:"cover_image_url"`
+	GalleryImages string `json:"gallery_images"`
+	Status        int    `json:"status"`
 }
 
 type UpdateHomestayInput struct {
-	Path    *UpdateTopicPath    `json:"path"`
-	Request *UpdateTopicRequest `json:"request"`
-}
-
-type UpdateHomestayResponse struct {
+	Path    *UpdateHomestayPath    `json:"path"`
+	Request *UpdateHomestayRequest `json:"request"`
 }

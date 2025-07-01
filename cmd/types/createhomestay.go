@@ -13,4 +13,5 @@ type CreateHomestayRequest struct {
 }
 
 type CreateHomestayResponse struct {
+	Homestay
 }

@@ -3,113 +3,116 @@ package postgresql
 import (
 	"back-end/cmd/database/model"
 	"back-end/cmd/database/repo"
-	"back-end/core/logger"
 	"context"
-	"database/sql"
-	"fmt"
 
-	sq "github.com/Masterminds/squirrel"
-	"github.com/jmoiron/sqlx"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type HomestayDB struct {
 	table               string
-	connect             *sqlx.DB
+	connect             *gorm.DB
 	IgnoreInsertColumns []string
-	builder             sq.StatementBuilderType
 }
 
 func NewHomestayDB() (repo.HomestayRepo, error) {
-	db, err := sqlx.Open("postgres", "postgres://postgres:524020@localhost:5432/nckh?sslmode=disable")
+	dsn := "host=localhost user=homestay_api password=123456 dbname=homestay_api port=5435 sslmode=disable"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
+
 	return &HomestayDB{
 		table:               "homestays",
 		connect:             db,
 		IgnoreInsertColumns: []string{"id"},
-		builder:             sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
 	}, nil
 }
 
 func (h *HomestayDB) Close() {
-	_ = h.connect.Close()
+	sqlDB, err := h.connect.DB()
+	if err == nil {
+		_ = sqlDB.Close()
+	}
 }
 
-func (h *HomestayDB) GetHomestays(ctx context.Context, condition *repo.GetCondition) ([]*model.Homestay, error) {
-	ctxLogger := logger.NewContextLog(ctx)
+func (h *HomestayDB) GetHomestays(ctx context.Context, condition *repo.HomestayCondition, page, pageSize int) ([]*model.Homestay, int, error) {
+	db := h.connect.WithContext(ctx).Table(h.table)
 
-	db := h.builder.Select("*").From(h.table)
+	// Apply filter
 	if condition != nil {
-		db = db.Where(sq.Like{"name": fmt.Sprintf("%%%s%%", condition.Key)})
+		if condition.Location != nil {
+			db = db.Where("location = ?", condition.Location)
+		}
+		if condition.HostID != nil {
+			db = db.Where("host_id = ?", *condition.HostID)
+		}
+		if condition.ServiceID != nil {
+			db = db.Where("service_id = ?", *condition.ServiceID)
+		}
+		if condition.Status != nil {
+			db = db.Where("status = ?", *condition.Status)
+		}
 	}
 
-	query, args, err := db.ToSql()
-	if err != nil {
-		ctxLogger.Errorf("Failed to build query: %s", err)
-		return nil, err
+	// Count total
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
+
+	// Apply pagination
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (page - 1) * pageSize
+	db = db.Limit(pageSize).Offset(offset)
 
 	var result []*model.Homestay
-	err = h.connect.SelectContext(ctx, &result, query, args...)
-	if err != nil {
-		ctxLogger.Errorf("Failed to select homestays: %s", err)
+	if err := db.Find(&result).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return result, int(total), nil
+}
+
+func (h *HomestayDB) CreateHomestay(ctx context.Context, homestay *model.Homestay) (*model.Homestay, error) {
+	db := h.connect.WithContext(ctx)
+	
+	created := *homestay
+	if err := db.Table(h.table).Create(&created).Error; err != nil {
 		return nil, err
 	}
-	if len(result) == 0 {
-		return nil, sql.ErrNoRows
-	}
 
-	return result, nil
+	return &created, nil
 }
 
-func (h *HomestayDB) CreateHomestay(ctx context.Context, homestay *model.Homestay) error {
-	ctxLogger := logger.NewContextLog(ctx)
+func (h *HomestayDB) UpdateHomestay(ctx context.Context, homestay *model.Homestay) (*model.Homestay, error) {
+	db := h.connect.WithContext(ctx)
 
-	db := h.builder.Insert(h.table).
-		Columns(GetListColumn(homestay, h.IgnoreInsertColumns, []string{})...).
-		Values(GetListValues(homestay, h.IgnoreInsertColumns, []string{})...)
-
-	query, args, err := db.ToSql()
-	if err != nil {
-		ctxLogger.Errorf("Failed to build insert query: %s", err)
-		return err
+	updated := *homestay
+	if err := db.Table(h.table).Where("id = ?", homestay.Id).Updates(&updated).Error; err != nil {
+		return nil, err
 	}
 
-	_, err = h.connect.ExecContext(ctx, query, args...)
-	if err != nil {
-		ctxLogger.Errorf("Failed to insert homestay: %s", err)
-		return err
+	// Get the updated record
+	if err := db.Table(h.table).Where("id = ?", homestay.Id).First(&updated).Error; err != nil {
+		return nil, err
 	}
-	return nil
+
+	return &updated, nil
 }
 
-func (h *HomestayDB) UpdateHomestay(ctx context.Context, homestay *model.Homestay) error {
-	ctxLogger := logger.NewContextLog(ctx)
+func (h *HomestayDB) GetHomestayByID(ctx context.Context, id int64) (*model.Homestay, error) {
+	db := h.connect.WithContext(ctx)
 
-	db := h.builder.Update(h.table).
-		Set("service_id", homestay.ServiceID).
-		Set("host_id", homestay.HostID).
-		Set("name", homestay.Name).
-		Set("description", homestay.Description).
-		Set("location", homestay.Location).
-		Set("address", homestay.Address).
-		Set("cover_image_url", homestay.CoverImageURL).
-		Set("gallery_images", homestay.GalleryImages).
-		Set("status", homestay.Status).
-		Set("updated_at", homestay.UpdatedAt).
-		Where(sq.Eq{"id": homestay.Id})
-
-	query, args, err := db.ToSql()
-	if err != nil {
-		ctxLogger.Errorf("Failed to build update query: %s", err)
-		return err
+	var result model.Homestay
+	if err := db.Table(h.table).Where("id = ?", id).First(&result).Error; err != nil {
+		return nil, err
 	}
 
-	_, err = h.connect.ExecContext(ctx, query, args...)
-	if err != nil {
-		ctxLogger.Errorf("Failed to update homestay: %s", err)
-		return err
-	}
-	return nil
+	return &result, nil
 }

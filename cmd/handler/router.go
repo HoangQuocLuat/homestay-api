@@ -1,19 +1,22 @@
 package handler
 
 import (
-	"back-end/cmd/handler/topic"
+	"back-end/cmd/handler/homestay"
 	"back-end/cmd/svc"
 
 	"github.com/gin-gonic/gin"
-	swaggerfiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func RegisterHandlers(router *gin.Engine, serverCtx *svc.ServiceContext) {
 	router.LoadHTMLGlob("cmd/templates/pages/*.tmpl")
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-	router.GET("/nckh/topic", topic.GetAllTopicsHandler(serverCtx))
-	router.GET("/nckh/search_topic_by_key", topic.GetTopicByKeyHandler(serverCtx))
-	router.POST("/nckh/lecturer/create_topic", topic.CreateTopicHandler(serverCtx))
-	router.PUT("/nckh/lecturer/topic/{id}", topic.TopicUpdateHandler(serverCtx))
+
+	//homestay
+	homestayGroup := router.Group("/homestay")
+	{
+		homestayGroup.POST("", homestay.CreateHomestayHandler(serverCtx))
+		homestayGroup.GET("/all", homestay.GetAllHomestayHandler(serverCtx))
+		homestayGroup.GET("/:id", homestay.GetHomestayHandler(serverCtx))
+		homestayGroup.PUT("/:id", homestay.UpdateHomestayHandler(serverCtx))
+	}
+
 }

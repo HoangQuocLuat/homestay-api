@@ -49,12 +49,22 @@ func main() {
 	initConfig()
 	c := getBootstrapConfig()
 
-	topicDB, err := postgresql.NewTopicDB()
+	homestayDB, err := postgresql.NewHomestayDB()
 	if err != nil {
 		panic(err)
 	}
 
-	serverCtx := svc.NewServiceContext(*c, topicDB)
+	// roomDB, err := postgresql.NewRoomDB()
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// serviceDB, err := postgresql.NewServiceDB()
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	serverCtx := svc.NewServiceContext(*c, homestayDB, nil, nil)
 	router := gin.Default()
 
 	handler.RegisterHandlers(router, serverCtx)
